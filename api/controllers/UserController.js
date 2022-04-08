@@ -172,48 +172,39 @@ module.exports = {
    *  "error": "Mismatch passwords"
    * }
    */
-  login: (req, res) => {
-    const data = req.body;
+  login: async (req, res) => {
+    try {
+      const data = req.body;
 
-    if (!data.email || !data.password) {
-      return res.badRequest('Email and password required');
-    }
+      if (!data.email || !data.password) {
+        return res.badRequest('Email and password required');
+      }
 
-    Users.findOne({ email: data.email })
-      .then((user) => {
-        if (!user) {
-          return res.notFound();
-        }
+      const user = await Users.findOne({ email: data.email });
 
-        Users.comparePassword(data.password, user.password)
-          .then(() => {
-            const accessToken = jwToken.sign(
-              { id: user.id, name: user.name },
-              1000 * 60 * 15
-            );
-            const refreshToken = jwToken.sign(
-              { id: user.id, name: user.name },
-              1000 * 60 * 60 * 12
-            );
+      if (!user) {
+        return res.notFound();
+      }
 
-            return res.send({
-              user,
-              accessToken: accessToken,
-              refreshToken: refreshToken,
-            });
-          })
-          .catch((error) => {
-            return res.json(403, { error });
-          });
-      })
-      .catch((err) => {
-        sails.log.error(err);
-        return res.serverError();
-      })
-      .catch((err) => {
-        sails.log.error(err);
-        return res.serverError();
+      await Users.comparePassword(data.password, user.password);
+
+      const accessToken = jwToken.sign(
+        { id: user.id, name: user.name },
+        1000 * 60 * 15
+      );
+      const refreshToken = jwToken.sign(
+        { id: user.id, name: user.name },
+        1000 * 60 * 60 * 12
+      );
+
+      return res.send({
+        user,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
       });
+    } catch (error) {
+      return res.json(403, { error });
+    }
   },
 
   /**
